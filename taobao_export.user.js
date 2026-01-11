@@ -17,7 +17,7 @@
 
     // 配置项
     const CONFIG = {
-        nextPageDelay: 5000, // 翻页后等待时间(ms)，防止反爬和等待DOM渲染 (增加到5秒)
+        nextPageDelay: 2000, // 翻页后等待时间(ms)，防止反爬和等待DOM渲染 (增加到5秒)
         scrollDelay: 1000,    // 滚动页面的间隔(ms) (增加到1秒)
         detailFetchDelay: 2000 + Math.random() * 3000, // 详情页抓取随机延迟 (2-5秒)
         concurrency: 1,      // 详情页抓取并发数 (降为1，最安全)
@@ -52,6 +52,7 @@
 
     // 存储所有订单数据
     let allOrdersData = [];
+    let processedOrderIds = new Set(); // 用于去重
     let isExporting = false;
     let shouldStop = false;
 
@@ -471,6 +472,7 @@
         isExporting = true;
         shouldStop = false;
         allOrdersData = [];
+        processedOrderIds.clear();
         
         const btn = document.getElementById('batch-export-btn');
         const cancelBtn = document.getElementById('batch-cancel-btn');
@@ -503,67 +505,44 @@
                 window.scrollTo(0, 0);
 
                 // 解析当前页基础数据
-                const pageData = parseCurrentPage();
+                let pageData = parseCurrentPage();
                 
-            // 抓取详情页数据
-            if (pageData.length > 0) {
-                // updateStatus(`第 ${pageCount} 页：准备抓取订单详情 (${pageData.length} 个)...`);
-                
-                /* 注释掉详情页抓取逻辑
-                // 去重（同一订单号只需要抓取一次）
-                const uniqueOrders = {}; // orderId -> url
+                // 数据去重与有效性检查
+                let newOrders = [];
                 pageData.forEach(order => {
-                    if (order['详情链接'] && !uniqueOrders[order['订单号']]) {
-                        uniqueOrders[order['订单号']] = order['详情链接'];
+                    if (!processedOrderIds.has(order['订单号'])) {
+                        processedOrderIds.add(order['订单号']);
+                        newOrders.push(order);
                     }
                 });
 
-                const tasks = Object.entries(uniqueOrders).map(([oid, url], index) => {
-                    return async () => {
-                        if (shouldStop) return null;
-                        
-                        // 批次暂停机制
-                        if (index > 0 && index % CONFIG.batchSize === 0) {
-                            updateStatus(`已抓取 ${index} 个，暂停 ${CONFIG.batchPause/1000} 秒防拦截...`);
-                            await delay(CONFIG.batchPause);
+                // 如果没有新订单且不是第一页，可能是页面加载慢导致读取了旧数据，尝试等待后重试
+                if (newOrders.length === 0 && pageCount > 1) {
+                    updateStatus(`第 ${pageCount} 页数据似乎未更新，等待 2 秒后重试...`);
+                    await delay(2000);
+                    pageData = parseCurrentPage();
+                    pageData.forEach(order => {
+                        if (!processedOrderIds.has(order['订单号'])) {
+                            processedOrderIds.add(order['订单号']);
+                            newOrders.push(order);
                         }
-
-                        updateStatus(`第 ${pageCount} 页：正在抓取订单 ${oid} 详情 (${index + 1}/${Object.keys(uniqueOrders).length})...`);
-                        await delay(CONFIG.detailFetchDelay); 
-                        const detail = await fetchOrderDetail(url);
-                        return { oid, detail };
-                    };
-                });
-
-                // 并发执行任务
-                const results = await runConcurrent(tasks, CONFIG.concurrency);
-                
-                // 建立结果映射
-                const detailMap = {};
-                results.forEach(res => {
-                    if (res) {
-                        detailMap[res.oid] = res.detail;
-                    }
-                });
-
-                // 回填数据
-                pageData.forEach(order => {
-                    const oid = order['订单号'];
-                    if (detailMap[oid]) {
-                        Object.assign(order, detailMap[oid]);
-                    }
-                });
-                */
+                    });
+                }
                 
                 if (shouldStop) {
                     // 如果停止，也要保留已处理的部分数据
-                    allOrdersData = allOrdersData.concat(pageData);
+                    if (newOrders.length > 0) {
+                        allOrdersData = allOrdersData.concat(newOrders);
+                    }
                     break;
                 }
 
-                allOrdersData = allOrdersData.concat(pageData);
-                updateStatus(`已收集 ${allOrdersData.length} 条订单记录`, 50);
-            }
+                if (newOrders.length > 0) {
+                    allOrdersData = allOrdersData.concat(newOrders);
+                    updateStatus(`已收集 ${allOrdersData.length} 条订单记录`, 50);
+                } else if (pageCount > 1) {
+                    updateStatus(`注意：第 ${pageCount} 页未检测到新订单，继续翻页...`);
+                }
 
                 if (shouldStop) break;
 
