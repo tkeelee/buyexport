@@ -489,7 +489,8 @@
                 
                 // 等待内容加载
                 if (pageCount > 1) {
-                    await delay(CONFIG.nextPageDelay);
+                    // await delay(CONFIG.nextPageDelay);
+                    await delay(1500); // 保留少量等待确保DOM渲染，否则获取不到数据
                 } else {
                     await delay(1000);
                 }
@@ -498,7 +499,7 @@
 
                 // 滚动页面
                 window.scrollTo(0, document.body.scrollHeight);
-                await delay(CONFIG.scrollDelay);
+                // await delay(CONFIG.scrollDelay);
                 window.scrollTo(0, 0);
 
                 // 解析当前页基础数据
@@ -506,8 +507,9 @@
                 
             // 抓取详情页数据
             if (pageData.length > 0) {
-                updateStatus(`第 ${pageCount} 页：准备抓取订单详情 (${pageData.length} 个)...`);
+                // updateStatus(`第 ${pageCount} 页：准备抓取订单详情 (${pageData.length} 个)...`);
                 
+                /* 注释掉详情页抓取逻辑
                 // 去重（同一订单号只需要抓取一次）
                 const uniqueOrders = {}; // orderId -> url
                 pageData.forEach(order => {
@@ -551,6 +553,7 @@
                         Object.assign(order, detailMap[oid]);
                     }
                 });
+                */
                 
                 if (shouldStop) {
                     // 如果停止，也要保留已处理的部分数据
