@@ -17,7 +17,7 @@
 
     // 配置项
     const CONFIG = {
-        nextPageDelay: 2000, // 翻页后等待时间(ms)，防止反爬和等待DOM渲染 (增加到5秒)
+        nextPageDelay: 4000, // 翻页后等待时间(ms)，防止反爬和等待DOM渲染 (增加到5秒)
         scrollDelay: 1000,    // 滚动页面的间隔(ms) (增加到1秒)
         detailFetchDelay: 2000 + Math.random() * 3000, // 详情页抓取随机延迟 (2-5秒)
         concurrency: 1,      // 详情页抓取并发数 (降为1，最安全)
