@@ -206,118 +206,119 @@
         if (!url) return Promise.resolve({});
         if (url.startsWith('//')) url = 'https:' + url;
         
-        console.log(`[淘宝导出] 开始抓取详情页: ${url}`);
+        // console.log(`[淘宝导出] 开始抓取详情页: ${url}`);
+        return Promise.resolve({}); // 暂时禁用详情页抓取，直接返回空对象
 
-        return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: "GET",
-                url: url,
-                onload: function(response) {
-                    try {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(response.responseText, 'text/html');
+        // return new Promise((resolve) => {
+        //     GM_xmlhttpRequest({
+        //         method: "GET",
+        //         url: url,
+        //         onload: function(response) {
+        //             try {
+        //                 const parser = new DOMParser();
+        //                 const doc = parser.parseFromString(response.responseText, 'text/html');
 
-                        const details = {
-                            '收件人信息': '',
-                            '交易快照': '',
-                            '支付宝交易号': '',
-                            '创建时间': '',
-                            '付款时间': '',
-                            '发货时间': '',
-                            '成交时间': ''
-                        };
+        //                 const details = {
+        //                     '收件人信息': '',
+        //                     '交易快照': '',
+        //                     '支付宝交易号': '',
+        //                     '创建时间': '',
+        //                     '付款时间': '',
+        //                     '发货时间': '',
+        //                     '成交时间': ''
+        //                 };
 
-                        // 1) 收件人信息（物流地址块）
-                        const logisticsEl = doc.querySelector(CONFIG.detailSelectors.logistics);
-                        if (logisticsEl) {
-                            const addressItem = logisticsEl.querySelector(CONFIG.detailSelectors.addressItem) || logisticsEl;
-                            // 尝试更精确的提取：结构通常是 icon + div(div(addr) + div(user))
-                            // addressItem 直接 innerText 也可以，但可能包含多余空白
-                            let text = addressItem.innerText || '';
-                            details['收件人信息'] = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-                        } else {
-                            // 备选：尝试从“订单信息”列表里找“收货信息”
-                            // 有时候物流块不显示，但下方的列表中有
-                        }
+        //                 // 1) 收件人信息（物流地址块）
+        //                 const logisticsEl = doc.querySelector(CONFIG.detailSelectors.logistics);
+        //                 if (logisticsEl) {
+        //                     const addressItem = logisticsEl.querySelector(CONFIG.detailSelectors.addressItem) || logisticsEl;
+        //                     // 尝试更精确的提取：结构通常是 icon + div(div(addr) + div(user))
+        //                     // addressItem 直接 innerText 也可以，但可能包含多余空白
+        //                     let text = addressItem.innerText || '';
+        //                     details['收件人信息'] = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        //                 } else {
+        //                     // 备选：尝试从“订单信息”列表里找“收货信息”
+        //                     // 有时候物流块不显示，但下方的列表中有
+        //                 }
 
-                        // 2) 订单信息块（标题 + 值，右侧值通常是 .detailInfoItem--*** 的 a/div）
-                        const rows = doc.querySelectorAll(CONFIG.detailSelectors.infoContent);
-                        rows.forEach((row) => {
-                            const titleEl = row.querySelector(CONFIG.detailSelectors.infoTitle);
-                            if (!titleEl) return;
-                            const title = titleEl.innerText.trim();
+        //                 // 2) 订单信息块（标题 + 值，右侧值通常是 .detailInfoItem--*** 的 a/div）
+        //                 const rows = doc.querySelectorAll(CONFIG.detailSelectors.infoContent);
+        //                 rows.forEach((row) => {
+        //                     const titleEl = row.querySelector(CONFIG.detailSelectors.infoTitle);
+        //                     if (!titleEl) return;
+        //                     const title = titleEl.innerText.trim();
 
-                            // 查找同级的值元素。注意：titleEl 本身也在一个 item 里，需要排除它。
-                            // 结构通常是: div(item > title) + a(item > value)
-                            const allItems = Array.from(row.querySelectorAll("[class*='detailInfoItem--']"));
-                            // 找到不包含 titleEl 的那个 item
-                            const valueEl = allItems.find(item => !item.contains(titleEl));
+        //                     // 查找同级的值元素。注意：titleEl 本身也在一个 item 里，需要排除它。
+        //                     // 结构通常是: div(item > title) + a(item > value)
+        //                     const allItems = Array.from(row.querySelectorAll("[class*='detailInfoItem--']"));
+        //                     // 找到不包含 titleEl 的那个 item
+        //                     const valueEl = allItems.find(item => !item.contains(titleEl));
 
-                            const getValueText = () => {
-                                if (!valueEl) return '';
-                                // 文本值
-                                const txt = (valueEl.innerText || '').trim();
-                                // 某些值是链接，优先用 href
-                                if (title === '交易快照') {
-                                    if (valueEl.tagName === 'A' && valueEl.href) return valueEl.href;
-                                    const link = valueEl.querySelector('a');
-                                    if (link && link.href) return link.href;
-                                }
-                                return txt;
-                            };
+        //                     const getValueText = () => {
+        //                         if (!valueEl) return '';
+        //                         // 文本值
+        //                         const txt = (valueEl.innerText || '').trim();
+        //                         // 某些值是链接，优先用 href
+        //                         if (title === '交易快照') {
+        //                             if (valueEl.tagName === 'A' && valueEl.href) return valueEl.href;
+        //                             const link = valueEl.querySelector('a');
+        //                             if (link && link.href) return link.href;
+        //                         }
+        //                         return txt;
+        //                     };
 
-                            switch (title) {
-                                case '收货信息': // 备选收货信息
-                                    if (!details['收件人信息']) {
-                                        details['收件人信息'] = getValueText().replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-                                    }
-                                    break;
-                                case '交易快照':
-                                    details['交易快照'] = getValueText();
-                                    break;
-                                case '支付宝交易号':
-                                    details['支付宝交易号'] = getValueText();
-                                    break;
-                                case '创建时间':
-                                    details['创建时间'] = getValueText();
-                                    break;
-                                case '付款时间':
-                                    details['付款时间'] = getValueText();
-                                    break;
-                                case '发货时间':
-                                    details['发货时间'] = getValueText();
-                                    break;
-                                case '成交时间':
-                                    details['成交时间'] = getValueText();
-                                    break;
-                                default:
-                                    break;
-                            }
-                        });
+        //                     switch (title) {
+        //                         case '收货信息': // 备选收货信息
+        //                             if (!details['收件人信息']) {
+        //                                 details['收件人信息'] = getValueText().replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        //                             }
+        //                             break;
+        //                         case '交易快照':
+        //                             details['交易快照'] = getValueText();
+        //                             break;
+        //                         case '支付宝交易号':
+        //                             details['支付宝交易号'] = getValueText();
+        //                             break;
+        //                         case '创建时间':
+        //                             details['创建时间'] = getValueText();
+        //                             break;
+        //                         case '付款时间':
+        //                             details['付款时间'] = getValueText();
+        //                             break;
+        //                         case '发货时间':
+        //                             details['发货时间'] = getValueText();
+        //                             break;
+        //                         case '成交时间':
+        //                             details['成交时间'] = getValueText();
+        //                             break;
+        //                         default:
+        //                             break;
+        //                     }
+        //                 });
                         
-                        console.log(`[淘宝导出] 解析详情完成 ${url}`, details);
-                        resolve(details);
-                    } catch (e) {
-                        console.error('解析详情页失败:', url, e);
-                        resolve({});
-                    }
-                },
-                onerror: function(err) {
-                    console.error('抓取详情页网络错误:', url, err);
-                    resolve({});
-                },
-                ontimeout: function(err) {
-                    console.error('抓取详情页超时:', url, err);
-                    resolve({});
-                }
-            });
-        });
+        //                 // console.log(`[淘宝导出] 解析详情完成 ${url}`, details);
+        //                 resolve(details);
+        //             } catch (e) {
+        //                 // console.error('解析详情页失败:', url, e);
+        //                 resolve({});
+        //             }
+        //         },
+        //         onerror: function(err) {
+        //             // console.error('抓取详情页网络错误:', url, err);
+        //             resolve({});
+        //         },
+        //         ontimeout: function(err) {
+        //             // console.error('抓取详情页超时:', url, err);
+        //             resolve({});
+        //         }
+        //     });
+        // });
     }
 
     // 解析当前页面订单
     function parseCurrentPage() {
         const orderContainers = document.querySelectorAll(CONFIG.selectors.orderContainer);
-        console.log(`当前页找到 ${orderContainers.length} 个订单`);
+        // console.log(`当前页找到 ${orderContainers.length} 个订单`);
         
         const pageOrders = [];
 
@@ -418,7 +419,7 @@
                 });
 
             } catch (e) {
-                console.error('解析订单出错:', e, container);
+                // console.error('解析订单出错:', e, container);
             }
         });
 
@@ -572,7 +573,7 @@
                 }
             }
         } catch (e) {
-            console.error('导出过程出错:', e);
+            // console.error('导出过程出错:', e);
             updateStatus('导出出错，尝试保存已获取数据...');
         }
 
